@@ -70,6 +70,10 @@ body {
   margin-bottom: 16px;
 }
 
+.hide {
+  display: none !important;
+}
+
 input {
   flex: 1;
   min-width: 0;
@@ -384,4 +388,100 @@ mark.flash {
 
 .toast.hidden {
   display: none;
+}
+
+/* ---------- 分组（每 10 词一组，可展开/隐藏） ---------- */
+.word-group {
+  margin-bottom: 14px;
+}
+
+.group-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ink-border);
+  background: var(--ink-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--ink-accent);
+  text-align: left;
+  cursor: pointer;
+}
+
+.group-header .caret {
+  transition: transform 0.2s;
+  font-size: 12px;
+  color: var(--ink-light);
+}
+
+.word-group.collapsed .group-header .caret {
+  transform: rotate(-90deg);
+}
+
+.group-header .count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--ink-light);
+  white-space: nowrap;
+}
+
+.group-header.pending-header {
+  border-color: var(--ink-accent);
+  color: var(--ink-dark);
+}
+
+.group-body {
+  margin-top: 10px;
+}
+
+.word-group.collapsed .group-body {
+  display: none;
+}
+
+/* ---------- 跳转目标词：特别标黄 ---------- */
+mark.target {
+  background: #f5c542;
+  color: var(--ink-dark);
+  box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.55);
+  padding: 1px 3px;
+}
+
+mark.target.flash {
+  animation: markTargetFlash 1.6s ease;
+}
+
+@keyframes markTargetFlash {
+  0%, 60% { background: #f0a92e; box-shadow: 0 0 0 5px rgba(240, 169, 46, 0.45); }
+  100% { background: #f5c542; box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.55); }
+}
+
+/* ---------- 导入面板 ---------- */
+.import-title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+textarea {
+  width: 100%;
+  min-height: 140px;
+  border: 1px solid var(--ink-border);
+  border-bottom: 1.5px solid var(--ink-border);
+  border-radius: 8px;
+  background: var(--ink-paper);
+  padding: 10px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-dark);
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+textarea:focus {
+  border-color: var(--ink-dark);
 }

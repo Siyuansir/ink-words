@@ -38,22 +38,14 @@
       <h2>设置</h2>
 
       <div class="setting-group">
-        <label for="apiBaseInput">后端接口地址（Cloudflare Worker）</label>
-        <div class="input-row">
-          <input id="apiBaseInput" type="text" inputmode="url" autocomplete="off"
-                 placeholder="例如 https://ink-words-api.你的用户名.workers.dev" />
-          <button id="saveApiBaseBtn" class="btn-primary">保存</button>
-        </div>
-        <p class="hint">留空则默认请求本机 http://localhost:8787（Worker 本地开发地址）。</p>
+        <label>导入单词</label>
+        <p class="hint">一次性粘贴多个生词（用空格分隔，至多 100 个），系统逐个查询释义并加入生词本。</p>
+        <button id="importBtn">开始导入</button>
       </div>
 
       <div class="setting-group">
-        <label for="modelInput">模型（可选，留空用后端默认模型）</label>
-        <div class="input-row">
-          <input id="modelInput" type="text" autocomplete="off" placeholder="例如 deepseek-chat" />
-          <button id="saveModelBtn" class="btn-primary">保存</button>
-        </div>
-        <p class="hint">需与后端允许的模型一致；本机调试时可在设置页测连通：</p>
+        <label>后端服务</label>
+        <p class="hint" id="apiBaseLine"></p>
         <button id="testApiBtn">测试接口连通</button>
       </div>
 
@@ -79,6 +71,18 @@
         <button id="closeSearchBtn">关闭</button>
       </div>
       <div id="searchResults" class="search-results"></div>
+    </div>
+
+    <div id="importPanel" class="search-panel hidden">
+      <div class="search-bar">
+        <h3 class="import-title">导入单词</h3>
+        <button id="closeImportBtn">关闭</button>
+      </div>
+      <textarea id="importInput" placeholder="粘贴生词，用空格分隔，例如：&#10;abandon curious journey brave whisper&#10;一次至多 100 个"></textarea>
+      <div class="btn-row">
+        <button id="importConfirmBtn" class="btn-primary">确认导入</button>
+      </div>
+      <p class="hint" id="importProgress"></p>
     </div>
   </div>
 
