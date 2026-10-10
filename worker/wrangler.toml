@@ -1,0 +1,22 @@
+name = "ink-words-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+[vars]
+# 当前默认：阿里云千问（通义千问，OpenAI 兼容接口）
+#   API Key 获取：https://bailian.console.aliyun.com/ →右上角头像→ API-KEY → 创建
+#   Key 形如 sk-xxxxxxxx，用 wrangler secret put LLM_API_KEY 设置，不要写进本文件
+#
+# 换其它服务商（均需 OpenAI 兼容接口）：
+#   DeepSeek : LLM_BASE_URL=https://api.deepseek.com/v1            LLM_MODEL=deepseek-chat
+#   智谱 GLM : LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4   LLM_MODEL=glm-4-flash
+#   Moonshot : LLM_BASE_URL=https://api.moonshot.cn/v1             LLM_MODEL=moonshot-v1-8k
+#   OpenAI   : LLM_BASE_URL=https://api.openai.com/v1              LLM_MODEL=gpt-4o-mini
+LLM_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+LLM_MODEL = "qwen-plus"
+# 允许前端在“设置页”切换的模型白名单，逗号分隔；留空则忽略前端传入的 model
+ALLOWED_MODELS = "qwen-turbo,qwen-plus,qwen-max,qwen-flash"
+
+# 部署前务必设置密钥（不要把 Key 写进本文件）：
+#   npx wrangler secret put LLM_API_KEY
+#   （用 DASHSCOPE_API_KEY 这个名字也可以，代码两者都认）

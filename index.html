@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f4ee" />
+  <title>墨词</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top-bar">
+      <h1>墨词</h1>
+      <button id="searchBtn">搜索</button>
+    </header>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- 单词页 -->
+    <main id="wordPage" class="page active">
+      <div class="input-row">
+        <input id="wordInput" type="text" inputmode="latin" autocapitalize="off" autocomplete="off"
+               spellcheck="false" placeholder="输入英语生词，例如 abandon" />
+        <button id="addWordBtn" class="btn-primary">查词</button>
+      </div>
+      <div id="pendingBar" class="pending-bar"></div>
+      <div id="wordList" class="word-list"></div>
+    </main>
+
+    <!-- 文章页 -->
+    <main id="articlePage" class="page">
+      <h2>短文</h2>
+      <div id="articleList" class="article-list"></div>
+    </main>
+
+    <!-- 设置页 -->
+    <main id="settingPage" class="page">
+      <h2>设置</h2>
+
+      <div class="setting-group">
+        <label for="apiBaseInput">后端接口地址（Cloudflare Worker）</label>
+        <div class="input-row">
+          <input id="apiBaseInput" type="text" inputmode="url" autocomplete="off"
+                 placeholder="例如 https://ink-words-api.你的用户名.workers.dev" />
+          <button id="saveApiBaseBtn" class="btn-primary">保存</button>
+        </div>
+        <p class="hint">留空则默认请求本机 http://localhost:8787（Worker 本地开发地址）。</p>
+      </div>
+
+      <div class="setting-group">
+        <label for="modelInput">模型（可选，留空用后端默认模型）</label>
+        <div class="input-row">
+          <input id="modelInput" type="text" autocomplete="off" placeholder="例如 deepseek-chat" />
+          <button id="saveModelBtn" class="btn-primary">保存</button>
+        </div>
+        <p class="hint">需与后端允许的模型一致；本机调试时可在设置页测连通：</p>
+        <button id="testApiBtn">测试接口连通</button>
+      </div>
+
+      <div class="setting-group">
+        <label>数据</label>
+        <p class="hint" id="statsLine"></p>
+        <div class="btn-row">
+          <button id="genNowBtn">用剩余生词立即生成短文</button>
+          <button id="clearDataBtn" class="btn-danger">清空本地数据</button>
+        </div>
+      </div>
+    </main>
+
+    <nav class="bottom-tab">
+      <button data-page="wordPage" class="tab-btn active">单词</button>
+      <button data-page="articlePage" class="tab-btn">文章</button>
+      <button data-page="settingPage" class="tab-btn">设置</button>
+    </nav>
+
+    <div id="searchPanel" class="search-panel hidden">
+      <div class="search-bar">
+        <input id="searchInput" type="text" autocomplete="off" placeholder="搜索已查过的单词" />
+        <button id="closeSearchBtn">关闭</button>
+      </div>
+      <div id="searchResults" class="search-results"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
