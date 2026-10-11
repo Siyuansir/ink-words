@@ -174,8 +174,8 @@ function renderWords() {
     </div>`;
   });
 
-  // 未分组的新词（攒文中），按录入先后排在最上方
-  const pending = getPendingWords().filter((w) => !usedKeys.has(w.word.toLowerCase()));
+  // 未分组的新词（攒文中）：显示在最上方，且最新的排最前，方便刚查完就能看到
+  const pending = getPendingWords().filter((w) => !usedKeys.has(w.word.toLowerCase())).reverse();
   if (pending.length) {
     const collapsed = collapse.pending ? " collapsed" : "";
     html = `
@@ -256,6 +256,7 @@ async function lookupWord() {
     wordInput.value = "";
     renderWords();
     renderSettingsStats();
+    highlightWordCard(data.word || raw); // 新词已在分组顶部，闪一下高亮便于注意到
     toast(`“${data.word || raw}” 已加入生词本`);
     checkAutoGenerate();
   } catch (err) {
