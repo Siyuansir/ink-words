@@ -149,6 +149,12 @@ button:disabled {
 }
 
 /* 左滑删除：外层裁剪，卡片盖在删除按钮上 */
+.swipeable {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
 .word-card-wrap {
   position: relative;
   overflow: hidden;
@@ -192,6 +198,19 @@ button:disabled {
 }
 
 .word-card-wrap.revealed .word-card {
+  transform: translateX(-72px);
+}
+
+.group-wrap .group-header {
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 0.18s ease;
+}
+
+.group-wrap.revealed .group-header {
   transform: translateX(-72px);
 }
 
@@ -464,25 +483,6 @@ mark.flash {
   font-size: 12px;
   color: var(--ink-light);
   white-space: nowrap;
-}
-
-.group-delete {
-  border: none;
-  background: transparent;
-  color: var(--ink-light);
-  display: flex;
-  align-items: center;
-  padding: 4px 6px;
-  margin: -4px -6px -4px 0;
-  border-radius: 8px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.group-delete:active {
-  color: var(--ink-dark);
-  background: var(--ink-border);
-  transform: scale(0.92);
 }
 
 .group-header.pending-header {

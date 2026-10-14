@@ -133,7 +133,7 @@ function groupOfWord(word) {
 function cardHtml(w) {
   const examples = (w.examples || []).slice(0, 2);
   return `
-  <div class="word-card-wrap" data-word="${escapeHtml(w.word.toLowerCase())}" data-used="${w.used ? "1" : "0"}">
+  <div class="word-card-wrap swipeable" data-word="${escapeHtml(w.word.toLowerCase())}" data-used="${w.used ? "1" : "0"}">
     <button class="card-delete" tabindex="-1" aria-label="删除">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="3.5 6 5.5 6 20.5 6"/>
@@ -156,9 +156,9 @@ function cardHtml(w) {
   </div>`;
 }
 
-const groupDeleteBtnHtml = `
-        <button class="group-delete" aria-label="删除整组" title="删除整组">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+const groupTrashHtml = `
+        <button class="card-delete" tabindex="-1" aria-label="删除整组">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3.5 6 5.5 6 20.5 6"/>
             <path d="M18.5 6l-1 13.2a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5.5 6"/>
             <path d="M10 10.5v6M14 10.5v6"/>
@@ -194,11 +194,13 @@ function renderWords() {
     const collapsed = collapse[gid] ? " collapsed" : "";
     html += `
     <div class="word-group${collapsed}" data-group="${gid}">
-      <div class="group-header" data-group="${gid}">
-        <span class="caret">▾</span>
-        <span>第 ${articles.length - i} 组 · 已生成短文</span>
-        <span class="count">${cards.length} 词 · ${fmtTime(a.time)}</span>
-        ${groupDeleteBtnHtml}
+      <div class="group-wrap swipeable" data-group="${gid}">
+        ${groupTrashHtml}
+        <div class="group-header" data-group="${gid}">
+          <span class="caret">▾</span>
+          <span>第 ${articles.length - i} 组 · 已生成短文</span>
+          <span class="count">${cards.length} 词 · ${fmtTime(a.time)}</span>
+        </div>
       </div>
       <div class="word-list group-body">${cards.map(cardHtml).join("")}</div>
     </div>`;
@@ -210,11 +212,13 @@ function renderWords() {
     const collapsed = collapse.pending ? " collapsed" : "";
     html = `
     <div class="word-group${collapsed}" data-group="pending">
-      <div class="group-header pending-header" data-group="pending">
-        <span class="caret">▾</span>
-        <span>未分组 · 攒文中</span>
-        <span class="count">${pending.length}/${WORDS_PER_ARTICLE}</span>
-        ${groupDeleteBtnHtml}
+      <div class="group-wrap swipeable" data-group="pending">
+        ${groupTrashHtml}
+        <div class="group-header pending-header" data-group="pending">
+          <span class="caret">▾</span>
+          <span>未分组 · 攒文中</span>
+          <span class="count">${pending.length}/${WORDS_PER_ARTICLE}</span>
+        </div>
       </div>
       <div class="word-list group-body">${pending.map(cardHtml).join("")}</div>
     </div>` + html;
@@ -222,13 +226,20 @@ function renderWords() {
 
   wordList.innerHTML = html;
 
-  // 组头：点击展开/隐藏；右侧垃圾桶：删除整组
-  wordList.querySelectorAll(".group-header").forEach((header) => {
-    header.addEventListener("click", (e) => {
-      if (e.target.closest(".group-delete")) return; // 删除按钮单独处理
-      const gid = header.dataset.group;
+  // 组头：左滑出垃圾桶删除整组；点击展开/隐藏（滑开状态下点击先收回）
+  wordList.querySelectorAll(".group-wrap").forEach((wrap) => {
+    const gid = wrap.dataset.group;
+    const header = wrap.querySelector(".group-header");
+    const delBtn = wrap.querySelector(".card-delete");
+
+    header.addEventListener("click", () => {
+      if (Date.now() < suppressClickUntil) return; // 手势后的补发 click
+      if (wrap.classList.contains("revealed")) {
+        closeWrap(wrap);
+        return;
+      }
       const map = loadCollapse();
-      const section = header.closest(".word-group");
+      const section = wrap.closest(".word-group");
       const nowCollapsed = !map[gid];
       if (nowCollapsed) map[gid] = true;
       else delete map[gid];
@@ -236,13 +247,13 @@ function renderWords() {
       section.classList.toggle("collapsed", nowCollapsed);
     });
 
-    const gDel = header.querySelector(".group-delete");
-    if (gDel) {
-      gDel.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteGroup(header.dataset.group);
-      });
-    }
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteGroup(gid);
+    });
+    delBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+
+    attachSwipe(wrap, header, delBtn);
   });
 
   // 卡片：点击跳转到对应短文；删除按钮：左滑后点击删除
@@ -285,27 +296,32 @@ function renderPendingBar() {
     : `已有 ${pending} 个新词未入文，攒满 ${WORDS_PER_ARTICLE} 个自动生成一篇短文。`;
 }
 
-// ---------- 左滑删除 ----------
+// ---------- 左滑删除（单词卡片、分组头通用）----------
 const DEL_W = 72; // 删除按钮宽度，与 CSS 保持一致
 let suppressClickUntil = 0; // 滑动手势结束后短暂忽略 click（浏览器会在 pointerup 后补发 click）
 
+// 滑动物料：外层可滑容器 wrap，内层位移的滑块 surface
+function surfaceOf(wrap) {
+  return wrap.querySelector(".word-card") || wrap.querySelector(".group-header");
+}
+
 function closeWrap(wrap) {
   wrap.classList.remove("revealed");
-  const card = wrap.querySelector(".word-card");
-  if (card) card.style.transform = "";
+  const surface = surfaceOf(wrap);
+  if (surface) surface.style.transform = "";
 }
 
 function closeAllWraps(except) {
-  document.querySelectorAll(".word-card-wrap.revealed").forEach((w) => {
+  document.querySelectorAll(".swipeable.revealed").forEach((w) => {
     if (w !== except) closeWrap(w);
   });
 }
 
 function setOpenState(wrap, open) {
   closeAllWraps(wrap);
-  const card = wrap.querySelector(".word-card");
-  card.style.transition = "";
-  card.style.transform = "";
+  const surface = surfaceOf(wrap);
+  surface.style.transition = "";
+  surface.style.transform = "";
   wrap.classList.toggle("revealed", open);
 }
 
@@ -361,7 +377,7 @@ function attachSwipe(wrap, card, delBtn) {
 }
 
 document.addEventListener("pointerdown", (e) => {
-  if (!e.target.closest(".word-card-wrap")) closeAllWraps();
+  if (!e.target.closest(".swipeable")) closeAllWraps();
 });
 
 async function deleteWordCard(word, wasUsed) {
