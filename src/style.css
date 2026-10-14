@@ -164,8 +164,8 @@ button:disabled {
   z-index: 0;
   border: none;
   border-radius: 0;
-  background: var(--ink-bg);
-  color: var(--ink-dark);
+  background: var(--ink-dark);
+  color: var(--ink-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -174,7 +174,7 @@ button:disabled {
 }
 
 .card-delete:active {
-  background: var(--ink-border);
+  background: #000;
 }
 
 .word-card {
