@@ -22,12 +22,16 @@ const server = http.createServer((req, res) => {
         "```json\n" +
         JSON.stringify({
           word: "abandon",
+          phonetic: "/əˈbændən/",
           meaning: "放弃；抛弃",
           pos: "动词",
           examples: ["Don't abandon your goals.", "They abandon the plan."],
           usage: "常用于 abandon sth / abandon doing sth",
         }) +
         "\n```";
+    } else if (system.includes("语境")) {
+      // 文中查词：语境义
+      content = JSON.stringify({ word: "abandon", meaning: "此处指“放纵（自己）”，作及物动词" });
     } else {
       articleCalls++;
       if (articleCalls === 1) {
@@ -70,9 +74,23 @@ try {
   assert.equal(r1.status, 200);
   const d1 = await r1.json();
   assert.equal(d1.meaning, "放弃；抛弃");
+  assert.equal(d1.phonetic, "/əˈbændən/");
   assert.equal(d1.examples.length, 2);
   assert.ok(d1.usage.includes("abandon sth"));
   console.log("explain-word ✓", JSON.stringify(d1, null, 0));
+
+  // ---- /api/explain-context（文中查词）----
+  const rc = await worker.fetch(
+    new Request("http://x/api/explain-context", {
+      method: "POST",
+      body: JSON.stringify({ word: "abandon", context: "He chose to abandon his post." }),
+    }),
+    env
+  );
+  assert.equal(rc.status, 200);
+  const dc = await rc.json();
+  assert.ok(dc.meaning.includes("此处"), "应返回语境义");
+  console.log("explain-context ✓", JSON.stringify(dc, null, 0));
 
   // ---- /api/generate-article（第一次不合格 → 自动重试）----
   const r2 = await worker.fetch(

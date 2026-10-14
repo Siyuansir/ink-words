@@ -2,7 +2,12 @@
 // API Key 只存在 Worker 的 Secrets 里，前端不接触密钥。
 // 后端地址已固定为正式部署的 Worker（默认千问模型），用户无需再填写。
 
-const API_BASE = "https://ink-words-api.englishink.workers.dev";
+const CLOUD_BASE = "https://ink-words-api.englishink.workers.dev";
+const LOCAL_BASE = "http://localhost:8787";
+
+// 本机开发（localhost/127.0.0.1 打开前端）自动连本地 wrangler，其余环境一律连云端
+export const API_BASE =
+  ["localhost", "127.0.0.1"].includes(location.hostname) ? LOCAL_BASE : CLOUD_BASE;
 
 // 清理旧版本遗留的用户自定义配置（接口地址、模型选择已不再开放）
 localStorage.removeItem("ink_api_base");
@@ -38,9 +43,14 @@ async function post(path, body, timeoutMs = 90000) {
   }
 }
 
-// 查单词：返回 { word, meaning, pos, examples, usage }
+// 查单词：返回 { word, phonetic, meaning, pos, examples, usage }
 export function explainWord(word) {
   return post("/api/explain-word", { word });
+}
+
+// 文中查词：返回该词在具体语境（句子）中的中文语境义 { word, meaning }
+export function explainInContext(word, context) {
+  return post("/api/explain-context", { word, context }, 60000);
 }
 
 // 生成短文：words 为一组生词，返回 { article, word_count }

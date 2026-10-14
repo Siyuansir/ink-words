@@ -32,6 +32,16 @@ res = await worker.fetch(
 );
 assert.equal(res.status, 400); // 非法单词被拦下，不消耗模型调用
 
+// /api/explain-context 参数校验
+res = await worker.fetch(
+  new Request("http://x/api/explain-context", {
+    method: "POST",
+    body: JSON.stringify({ word: "run", context: "" }),
+  }),
+  env
+);
+assert.equal(res.status, 400); // 空语境被拦下
+
 res = await worker.fetch(new Request("http://x/api/unknown"), env);
 assert.equal(res.status, 405);
 

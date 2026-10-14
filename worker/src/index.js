@@ -4,7 +4,9 @@
  * 接口：
  *   GET  /api/health          健康检查（前端“测试接口连通”按钮使用）
  *   POST /api/explain-word    { "word": "abandon" }
- *        → { word, meaning, pos, examples: [..], usage }
+ *        → { word, phonetic, meaning, pos, examples: [..], usage }
+ *   POST /api/explain-context { "word": "run", "context": "She went for a run." }
+ *        → { word, meaning }（该词在此句中的中文语境义）
  *   POST /api/generate-article{ "words": ["a","b",...] }
  *        → { article, word_count }（生词已用 <mark> 包裹，约 230-350 词）
  *
@@ -52,6 +54,7 @@ export default {
       if (request.method !== "POST") return err("仅支持 POST 请求", 405);
 
       if (url.pathname === "/api/explain-word") return await handleExplainWord(request, env);
+      if (url.pathname === "/api/explain-context") return await handleExplainContext(request, env);
       if (url.pathname === "/api/generate-article") return await handleGenerateArticle(request, env);
 
       return err("接口不存在", 404);
@@ -146,7 +149,8 @@ async function handleExplainWord(request, env) {
       content:
         "你是一个英语学习助手。请解释用户提供的英语单词。" +
         "只返回一个 JSON 对象，不要多余解释，不要代码块标记。字段：" +
-        'word（单词本身，原样返回）、meaning（中文含义，简洁列出主要义项）、' +
+        'word（单词本身，原样返回）、phonetic（国际音标，两侧加斜杠，如 /əˈbændən/）、' +
+        "meaning（中文含义，简洁列出主要义项）、" +
         "pos（词性，如“动词/名词”）、examples（2 个英文例句的数组）、" +
         "usage（常见搭配与语法用法，中文说明，例如“常用于 abandon sth / abandon doing sth”）。",
     },
@@ -166,10 +170,55 @@ async function handleExplainWord(request, env) {
 
   return json({
     word: parsed.word ? String(parsed.word).trim() : word,
+    phonetic: String(parsed.phonetic || parsed.ipa || ""),
     meaning: String(parsed.meaning || ""),
     pos: String(parsed.pos || ""),
     examples,
     usage: String(parsed.usage || ""),
+  });
+}
+
+/* ---------------- /api/explain-context（文中查词：语境义） ---------------- */
+
+async function handleExplainContext(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err("请求体必须是 JSON");
+  }
+
+  const word = String(body.word || "").trim();
+  const context = String(body.context || "").trim();
+  if (!/^[A-Za-z][A-Za-z' -]{0,30}$/.test(word)) {
+    return err("word 必须是 1-31 个字符的英语单词");
+  }
+  if (!context || context.length > 1200) {
+    return err("context 必须是 1-1200 字符的句子");
+  }
+
+  const messages = [
+    {
+      role: "system",
+      content:
+        "你是一个英语学习助手。用户会给出一个英语句子（或片段）以及其中的一个单词，" +
+        "请解释该单词在这个具体语境中的含义（语境义），用简洁的中文，" +
+        "如与常见义不同请点明此处用法。只返回一个 JSON 对象，不要多余解释，不要代码块标记。字段：" +
+        "word（单词原样返回）、meaning（该词在此句中的中文语境义，尽量一句话）。",
+    },
+    { role: "user", content: `单词：${word}\n语境：${context}` },
+  ];
+
+  let parsed;
+  try {
+    parsed = extractJson(await chatLLM(env, messages, { temperature: 0.3, maxTokens: 400 }));
+  } catch (e) {
+    return err(`语境释义生成失败：${e.message}`, 502);
+  }
+
+  return json({
+    word: parsed.word ? String(parsed.word).trim() : word,
+    meaning: String(parsed.meaning || ""),
   });
 }
 

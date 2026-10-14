@@ -148,12 +148,51 @@ button:disabled {
   gap: 12px;
 }
 
+/* 左滑删除：外层裁剪，卡片盖在删除按钮上 */
+.word-card-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.card-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 72px;
+  z-index: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--ink-dark);
+  color: var(--ink-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+}
+
+.card-delete:active {
+  background: #000;
+}
+
 .word-card {
+  position: relative;
+  z-index: 1;
   background: var(--ink-paper);
   border: 1px solid var(--ink-border);
   border-radius: 10px;
   padding: 14px;
   cursor: pointer;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 0.18s ease;
+}
+
+.word-card-wrap.revealed .word-card {
+  transform: translateX(-72px);
 }
 
 .word-card.highlight {
@@ -484,4 +523,79 @@ textarea {
 
 textarea:focus {
   border-color: var(--ink-dark);
+}
+
+/* 音标 */
+.word-card h3 .phonetic {
+  font-size: 12px;
+  color: var(--ink-light);
+  font-weight: 400;
+  font-family: "Times New Roman", serif;
+}
+
+/* 文中可点击的单词 */
+.article-body .w {
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.article-body .w:active {
+  background: rgba(90, 80, 60, 0.16);
+}
+
+/* 语境义弹层 */
+.context-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 43, 43, 0.4);
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.context-panel.hidden {
+  display: none;
+}
+
+.context-card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--ink-paper);
+  border-radius: 14px 14px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ink-border);
+}
+
+.context-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+
+.context-head button {
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  padding: 2px 12px;
+  min-height: 0;
+  color: var(--ink-light);
+}
+
+.context-sent {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink-light);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.context-meaning {
+  font-size: 15px;
+  color: var(--ink-dark);
+  margin: 0;
+  min-height: 22px;
+  line-height: 1.6;
 }
