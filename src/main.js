@@ -9,6 +9,7 @@ import {
   markWordsUsed,
   loadArticles,
   addArticle,
+  saveArticles,
   clearAll,
 } from "./storage.js";
 import { explainWord, explainInContext, generateArticle, getApiBase, pingHealth } from "./api.js";
@@ -155,6 +156,16 @@ function cardHtml(w) {
   </div>`;
 }
 
+const groupDeleteBtnHtml = `
+        <button class="group-delete" aria-label="删除整组" title="删除整组">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3.5 6 5.5 6 20.5 6"/>
+            <path d="M18.5 6l-1 13.2a2 2 0 0 1-2 1.8H8.5a2 2 0 0 1-2-1.8L5.5 6"/>
+            <path d="M10 10.5v6M14 10.5v6"/>
+            <path d="M9.5 6V4.2a1.2 1.2 0 0 1 1.2-1.2h2.6a1.2 1.2 0 0 1 1.2 1.2V6"/>
+          </svg>
+        </button>`;
+
 function renderWords() {
   const words = loadWords();
   if (!words.length) {
@@ -183,11 +194,12 @@ function renderWords() {
     const collapsed = collapse[gid] ? " collapsed" : "";
     html += `
     <div class="word-group${collapsed}" data-group="${gid}">
-      <button class="group-header" data-group="${gid}">
+      <div class="group-header" data-group="${gid}">
         <span class="caret">▾</span>
         <span>第 ${articles.length - i} 组 · 已生成短文</span>
         <span class="count">${cards.length} 词 · ${fmtTime(a.time)}</span>
-      </button>
+        ${groupDeleteBtnHtml}
+      </div>
       <div class="word-list group-body">${cards.map(cardHtml).join("")}</div>
     </div>`;
   });
@@ -198,20 +210,22 @@ function renderWords() {
     const collapsed = collapse.pending ? " collapsed" : "";
     html = `
     <div class="word-group${collapsed}" data-group="pending">
-      <button class="group-header pending-header" data-group="pending">
+      <div class="group-header pending-header" data-group="pending">
         <span class="caret">▾</span>
         <span>未分组 · 攒文中</span>
         <span class="count">${pending.length}/${WORDS_PER_ARTICLE}</span>
-      </button>
+        ${groupDeleteBtnHtml}
+      </div>
       <div class="word-list group-body">${pending.map(cardHtml).join("")}</div>
     </div>` + html;
   }
 
   wordList.innerHTML = html;
 
-  // 组头：点击展开/隐藏
+  // 组头：点击展开/隐藏；右侧垃圾桶：删除整组
   wordList.querySelectorAll(".group-header").forEach((header) => {
-    header.addEventListener("click", () => {
+    header.addEventListener("click", (e) => {
+      if (e.target.closest(".group-delete")) return; // 删除按钮单独处理
       const gid = header.dataset.group;
       const map = loadCollapse();
       const section = header.closest(".word-group");
@@ -221,6 +235,14 @@ function renderWords() {
       saveCollapse(map);
       section.classList.toggle("collapsed", nowCollapsed);
     });
+
+    const gDel = header.querySelector(".group-delete");
+    if (gDel) {
+      gDel.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteGroup(header.dataset.group);
+      });
+    }
   });
 
   // 卡片：点击跳转到对应短文；删除按钮：左滑后点击删除
@@ -352,6 +374,48 @@ async function deleteWordCard(word, wasUsed) {
   renderArticles();
   renderSettingsStats();
   toast(wasUsed ? `已删除 “${w.word}”，并在短文中取消标记` : `已删除 “${w.word}”`);
+}
+
+// 删除整个分组：已入文的组 = 组内单词 + 对应短文一起删；未分组 = 清空攒着的单词。
+// 组号在渲染时按数组顺序实时计算，删除后剩余分组自动重新排序编号。
+function deleteGroup(gid) {
+  const map = loadCollapse();
+  if (gid === "pending") {
+    const pending = getPendingWords();
+    if (!pending.length) return;
+    if (!confirm(`确定删除「未分组」的全部 ${pending.length} 个单词吗？\n删除后不可恢复。`)) return;
+    pending.forEach((w) => removeWord(w.word));
+    delete map.pending;
+    saveCollapse(map);
+    renderWords();
+    renderArticles();
+    renderSettingsStats();
+    toast(`已清空未分组的 ${pending.length} 个单词`);
+    return;
+  }
+
+  const articles = loadArticles();
+  const idx = articles.findIndex((a) => "g" + a.time === gid);
+  if (idx === -1) return;
+  const target = articles[idx];
+  const label = `第 ${articles.length - idx} 组`;
+  const ws = (target.words || []).map(String);
+  if (
+    !confirm(
+      `确定删除「${label}」吗？\n将同时删除该组 ${ws.length} 个单词和对应短文，删除后不可恢复。`
+    )
+  )
+    return;
+
+  ws.forEach((word) => removeWord(word));
+  saveArticles(articles.filter((_, j) => j !== idx));
+  delete map[gid];
+  saveCollapse(map);
+
+  renderWords();
+  renderArticles();
+  renderSettingsStats();
+  toast(`已删除「${label}」及其 ${ws.length} 个单词`);
 }
 
 // ---------- 文中查词（语境义） ----------

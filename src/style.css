@@ -466,6 +466,25 @@ mark.flash {
   white-space: nowrap;
 }
 
+.group-delete {
+  border: none;
+  background: transparent;
+  color: var(--ink-light);
+  display: flex;
+  align-items: center;
+  padding: 4px 6px;
+  margin: -4px -6px -4px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.group-delete:active {
+  color: var(--ink-dark);
+  background: var(--ink-border);
+  transform: scale(0.92);
+}
+
 .group-header.pending-header {
   border-color: var(--ink-accent);
   color: var(--ink-dark);
