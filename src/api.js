@@ -1,11 +1,10 @@
-// 与大模型后端（Cloudflare Worker）交互的接口层
-// API Key 只存在 Worker 的 Secrets 里，前端不接触密钥。
-// 后端地址已固定为正式部署的 Worker（默认千问模型），用户无需再填写。
+// 与大模型后端的接口层（阿里云函数计算 FC，默认千问模型）
+// API Key 只存在后端环境变量里，前端不接触密钥，用户无需填写任何地址。
 
-const CLOUD_BASE = "https://ink-words-api.englishink.workers.dev";
-const LOCAL_BASE = "http://localhost:8787";
+const CLOUD_BASE = "https://ink-words-api-psjczrhpuf.cn-chengdu.fcapp.run";
+const LOCAL_BASE = "http://localhost:9000";
 
-// 本机开发（localhost/127.0.0.1 打开前端）自动连本地 wrangler，其余环境一律连云端
+// 本机开发（localhost/127.0.0.1 打开前端）自动连本地后端（node fc/index.js），其余一律连 FC
 export const API_BASE =
   ["localhost", "127.0.0.1"].includes(location.hostname) ? LOCAL_BASE : CLOUD_BASE;
 

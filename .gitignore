@@ -3,3 +3,4 @@ dist/
 worker/.dev.vars
 worker/.wrangler/
 .DS_Store
+fc/ink-words-fc.zip
