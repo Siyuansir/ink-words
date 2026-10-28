@@ -34,19 +34,18 @@ const server = http.createServer((req, res) => {
       content = JSON.stringify({ word: "abandon", meaning: "此处指“放纵（自己）”，作及物动词" });
     } else {
       articleCalls++;
+      // 从 system 提示里解析目标单词列表，按需生成合格篇幅（每词约 20 词一句）
+      const targets = [...system.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
       if (articleCalls === 1) {
         // 第一次故意返回不合格：太短且漏词 → 应触发 Worker 自动重试
         content = "Too short. The <mark>abandon</mark> curious journey end.";
       } else {
-        // 第二次返回合格的 230-350 词短文
-        const sentences = WORDS.map(
-          (w, i) =>
-            `The <mark>${w}</mark> glowed brightly in the morning sun, and everyone in the small village saw it clearly and smiled together warmly.`
-        );
-        const padding = Array.from({ length: 6 }, (_, i) =>
-          `Time passed slowly over the green hills while birds sang above the river and children played near the old stone bridge.`
-        );
-        content = [...sentences, ...padding].join("\n\n");
+        content = targets
+          .map(
+            (w) =>
+              `The <mark>${w}</mark> glowed brightly in the morning sun, and everyone in the small village saw it clearly and smiled together warmly.`
+          )
+          .join("\n\n");
       }
     }
 
@@ -105,9 +104,29 @@ try {
   assert.equal(articleCalls, 2, "应触发一次重试");
   const marks = (d2.article.match(/<mark>/g) || []).length;
   assert.equal(marks, WORDS.length, "每个生词都应被 <mark> 包裹");
-  assert.ok(d2.word_count >= 230 && d2.word_count <= 350, `词数越界: ${d2.word_count}`);
+  assert.ok(d2.word_count >= 180 && d2.word_count <= 230, `10 词组应 180-230 词，实际 ${d2.word_count}`);
   assert.ok(!/<(?!\/?mark>)[a-z]/i.test(d2.article), "不应出现其它 HTML 标签");
   console.log(`generate-article ✓ ${d2.word_count} 词，${marks} 个 <mark>，含自动重试`);
+
+  // ---- 长度阶梯：3 词 → 50-70，5 词 → 80-120 ----
+  for (const [n, min, max] of [[3, 50, 70], [5, 80, 120]]) {
+    const words = WORDS.slice(0, n);
+    const rt = await worker.fetch(
+      new Request("http://x/api/generate-article", {
+        method: "POST",
+        body: JSON.stringify({ words }),
+      }),
+      env
+    );
+    assert.equal(rt.status, 200);
+    const dt = await rt.json();
+    assert.ok(
+      dt.word_count >= min && dt.word_count <= max,
+      `${n} 词组应 ${min}-${max} 词，实际 ${dt.word_count}`
+    );
+    assert.equal((dt.article.match(/<mark>/g) || []).length, n);
+    console.log(`阶梯 ${n} 词 ✓ ${dt.word_count} 词`);
+  }
 
   console.log("integration tests: all passed ✓");
 } finally {

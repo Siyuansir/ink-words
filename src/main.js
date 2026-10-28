@@ -49,6 +49,12 @@ const contextWordEl = document.getElementById("contextWord");
 const contextSentEl = document.getElementById("contextSent");
 const contextMeaningEl = document.getElementById("contextMeaning");
 const closeContextBtn = document.getElementById("closeContextBtn");
+const exportWordsBtn = document.getElementById("exportWordsBtn");
+const exportPanel = document.getElementById("exportPanel");
+const exportText = document.getElementById("exportText");
+const exportHint = document.getElementById("exportHint");
+const copyExportBtn = document.getElementById("copyExportBtn");
+const closeExportBtn = document.getElementById("closeExportBtn");
 
 const PAGE_TO_HASH = { wordPage: "#/words", articlePage: "#/articles", settingPage: "#/settings" };
 const HASH_TO_PAGE = { "#/words": "wordPage", "#/articles": "articlePage", "#/settings": "settingPage" };
@@ -889,7 +895,42 @@ testApiBtn.addEventListener("click", async () => {
 
 genNowBtn.addEventListener("click", () => {
   const pending = getPendingWords().map((w) => w.word);
+  if (pending.length < 2) {
+    toast(pending.length === 0 ? "没有可生成的新词，先去查几个单词吧" : "至少攒 2 个生词才能生成短文");
+    return;
+  }
   generateFor(pending); // 剩余生词不足 10 个也可成组，作为独立一组显示
+});
+
+// ---------- 导出单词 ----------
+exportWordsBtn.addEventListener("click", () => {
+  const list = loadWords().slice().reverse().map((w) => String(w.word)); // 查询最早 → 最新
+  if (!list.length) {
+    toast("生词本是空的，没有可导出的单词");
+    return;
+  }
+  exportText.value = list.join(" ");
+  exportHint.textContent = `共 ${list.length} 个单词 · 按查询先后排列（最早在前）`;
+  exportPanel.classList.remove("hidden");
+});
+
+closeExportBtn.addEventListener("click", () => exportPanel.classList.add("hidden"));
+
+copyExportBtn.addEventListener("click", async () => {
+  const text = exportText.value;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("已复制到剪贴板 ✓");
+  } catch {
+    // 剪贴板 API 不可用（如非安全上下文）：退回选中文本方案
+    exportText.removeAttribute("readonly");
+    exportText.select();
+    exportText.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    exportText.setAttribute("readonly", "");
+    toast(ok ? "已复制到剪贴板 ✓" : "自动复制失败，请长按文本框全选后手动复制", 3500);
+  }
 });
 
 clearDataBtn.addEventListener("click", () => {

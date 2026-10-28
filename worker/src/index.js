@@ -224,8 +224,21 @@ async function handleExplainContext(request, env) {
 
 /* ---------------- /api/generate-article ---------------- */
 
-const MIN_WORDS = 230;
-const MAX_WORDS = 350;
+// 文章长度阶梯：按目标词数决定篇幅
+function lengthTier(n) {
+  if (n <= 3) return { min: 50, max: 70, paras: "2" };
+  if (n <= 6) return { min: 80, max: 120, paras: "3" };
+  return { min: 180, max: 230, paras: "3-4" };
+}
+
+// 非目标词的误高亮：直接去掉 <mark> 还原纯文本（确定性修复，零 token 成本）
+function unwrapExtraMarks(article, words) {
+  const keys = new Set(words.map((w) => w.toLowerCase().replace(/[^a-z]/g, "")));
+  return article.replace(/<mark>([^<]*)<\/mark>/gi, (whole, inner) => {
+    const k = String(inner).toLowerCase().replace(/[^a-z]/g, "");
+    return k && !keys.has(k) ? inner : whole;
+  });
+}
 
 async function handleGenerateArticle(request, env) {
   let body;
@@ -235,14 +248,19 @@ async function handleGenerateArticle(request, env) {
     return err("请求体必须是 JSON");
   }
 
-  if (!Array.isArray(body.words) || body.words.length === 0 || body.words.length > 20) {
-    return err("words 必须是 1-20 个英语单词的数组");
+  if (!Array.isArray(body.words) || body.words.length < 2 || body.words.length > 10) {
+    return err("words 必须是 2-10 个英语单词的数组");
   }
   const words = body.words.map((w) => String(w).trim()).filter((w) => /^[A-Za-z][A-Za-z' -]{0,30}$/.test(w));
-  if (!words.length) return err("words 中没有有效的英语单词");
+  if (words.length < 2) return err("至少需要 2 个有效的英语单词");
 
-  const prompt = buildArticlePrompt(words);
+  const tier = lengthTier(words.length);
+  const prompt = buildArticlePrompt(words, tier);
   const messages = [{ role: "system", content: prompt.system }, { role: "user", content: prompt.user }];
+
+  let best = null;
+  const deviation = (wc, missing) =>
+    (wc < tier.min ? tier.min - wc : wc > tier.max ? wc - tier.max : 0) + missing.length * 1000;
 
   let article = "";
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -254,38 +272,43 @@ async function handleGenerateArticle(request, env) {
       return err(`短文生成失败：${e.message}`, 502);
     }
 
-    article = sanitizeArticle(raw);
+    article = unwrapExtraMarks(sanitizeArticle(raw), words); // 误高亮就地还原，不浪费改写机会
     const wc = countWords(article);
     const missing = missingWords(article, words);
+    const dev = deviation(wc, missing);
+    if (!best || dev < best.dev) best = { article, wc, dev };
 
-    if (wc >= MIN_WORDS - 30 && wc <= MAX_WORDS + 50 && missing.length === 0) break;
-    // 第二次重试：把不合格原因反馈给模型
-    messages.push({ role: "assistant", content: raw });
-    messages.push({
-      role: "user",
-      content:
-        `这篇短文不合格，请重写。问题：` +
-        (wc < MIN_WORDS || wc > MAX_WORDS ? `当前约 ${wc} 词，必须 230-350 词；` : "") +
-        (missing.length ? `以下单词未出现，必须原词出现且用 <mark> 包裹：${missing.join(", ")}；` : "") +
-        `仍然只返回正文。`,
-    });
+    if (dev === 0) break; // 词数达标且目标词齐全
+    // 不合格且有剩余尝试：把具体问题反馈给模型重写
+    if (attempt === 0) {
+      messages.push({ role: "assistant", content: raw });
+      messages.push({
+        role: "user",
+        content:
+          `这篇短文不合格，请重写。问题：` +
+          (wc < tier.min || wc > tier.max ? `当前约 ${wc} 词，必须 ${tier.min}-${tier.max} 词，绝不超过 ${tier.max} 词；` : "") +
+          (missing.length ? `以下单词未出现，必须原词出现且用 <mark> 包裹：${missing.join(", ")}；` : "") +
+          `仍然只返回正文。`,
+      });
+    }
   }
 
-  if (!article) return err("短文生成失败，请重试", 502);
+  const chosen = best || { article, wc: countWords(article) };
+  if (!chosen.article) return err("短文生成失败，请重试", 502);
 
-  return json({ article, word_count: countWords(article) });
+  return json({ article: chosen.article, word_count: chosen.wc });
 }
 
-function buildArticlePrompt(words) {
+function buildArticlePrompt(words, tier) {
   const list = words.map((w) => `"${w}"`).join(", ");
   return {
     system:
       "你是一个英语学习助手。请根据用户提供的单词生成一篇英语短文。要求：\n" +
       `1. 短文必须自然包含以下所有单词，且以原词形出现：${list}；\n` +
-      "2. 每个目标单词在文中第一次出现时用 <mark> 标签包裹，例如 <mark>curious</mark>，之后再次出现不必包裹；\n" +
-      `3. 文章长度严格控制在 ${MIN_WORDS}-${MAX_WORDS} 词之间；\n` +
-      "4. 语言难度适合英语学习者，情节连贯自然，不要生硬堆砌；\n" +
-      "5. 分 3-5 个自然段，段与段之间空一行；\n" +
+      "2. 每个目标单词在文中第一次出现时用 <mark> 标签包裹，例如 <mark>curious</mark>，之后再次出现不必包裹；只允许包裹上述目标单词，其他词一律不得加 <mark>；\n" +
+      `3. 文章长度必须落在 ${tier.min}-${tier.max} 词之间，绝不能超过 ${tier.max} 词，宁可稍短也不要超字数；\n` +
+      "4. 除目标词外，语言要简单地道：使用高中英语水平就能轻松读懂的日常词汇和简短句式，避免生僻词、学术词和复杂从句；情节连贯自然，不要生硬堆砌；\n" +
+      `5. 分 ${tier.paras} 个自然段，段与段之间空一行；\n` +
       "6. 除了目标单词的 <mark> 标签外，正文不得包含任何其他 HTML/Markdown 标记、标题或解释；\n" +
       "7. 只返回短文正文，不要任何额外说明。",
     user: `请用上这些单词写一篇英语短文：${list}`,
@@ -345,4 +368,4 @@ function missingWords(article, words) {
 }
 
 // 供本地冒烟测试使用（Cloudflare Workers 会忽略多余的导出）
-export { sanitizeArticle, countWords, missingWords };
+export { sanitizeArticle, countWords, missingWords, lengthTier, unwrapExtraMarks };

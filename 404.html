@@ -44,6 +44,12 @@
       </div>
 
       <div class="setting-group">
+        <label>导出单词</label>
+        <p class="hint">把生词本里的全部单词按查询先后导出，空格分隔，方便复制留存或重新导入。</p>
+        <button id="exportWordsBtn">导出全部单词</button>
+      </div>
+
+      <div class="setting-group">
         <label>后端服务</label>
         <p class="hint" id="apiBaseLine"></p>
         <button id="testApiBtn">测试接口连通</button>
@@ -95,6 +101,19 @@
         <p class="context-sent" id="contextSent"></p>
         <p class="context-meaning" id="contextMeaning"></p>
       </div>
+    </div>
+
+    <!-- 导出单词面板 -->
+    <div id="exportPanel" class="search-panel hidden">
+      <div class="search-bar">
+        <h3 class="import-title">导出单词</h3>
+        <button id="closeExportBtn">关闭</button>
+      </div>
+      <textarea id="exportText" rows="6" readonly></textarea>
+      <div class="btn-row">
+        <button id="copyExportBtn" class="btn-primary">复制全部</button>
+      </div>
+      <p class="hint" id="exportHint"></p>
     </div>
   </div>
 
